@@ -13,7 +13,7 @@ WIN = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
 
 clock = pygame.time.Clock()
 
-#TODO: Set angle manually
+
 
 class Vector:
     def __init__(self, endX: float, endY: float, offsetX:float = 0, offsetY:float = 0):
@@ -45,16 +45,17 @@ class Vector:
 
 
 class Vector2(Vector):
+    
     def __add__(self, point: Vector):
         newX = self.x + point.x-self.offset[0]
         newY = self.y + point.y-self.offset[1]
         return Vector2(newX, newY, self.offset[0], self.offset[1])
 
     def __sub__(self, point:Vector): 
-        newX = self.x - point.x
-        newY = self.y - point.y
+        newX = self.localPosition[0] - point.localPosition[0]
+        newY = self.localPosition[1] - point.localPosition[1]
         newV = Vector2(newX, newY, self.offset[0], self.offset[1])
-        # newV.update_offset(point.x, point.y)
+        newV.update_offset(point.x, point.y)
         return newV
     
     def __mul__(self, value:float):
@@ -67,15 +68,15 @@ class Vector2(Vector):
         newY = self.x/value
         return Vector2(newX, newY, self.offset[0], self.offset[1])
     
-    def Distance(self, point: Vector):
-        return math.sqrt((self.x - point.x)**2 + (self.y - point.y)**2)
+    def Distance(point1: Vector, point2:Vector):
+        return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
 
     def Dot(self, point: Vector):
         return self.localPosition[0]*point.localPosition[0]+self.localPosition[1]*point.localPosition[1]
     
-    def Angle(self, point: Vector):
-        step1 = self.Dot(point)
-        step2 = round(step1/(self.magnitude*point.magnitude), 8)
+    def Angle(point1: Vector, point2: Vector):
+        step1 = point1.Dot(point2)
+        step2 = round(step1/(point1.magnitude*point2.magnitude), 8)
         angle = round(math.acos(step2)*180/math.pi, 4)
         return angle
     
@@ -85,12 +86,11 @@ class Vector2(Vector):
         a = round(math.atan2(x1*y2-y1*x2,x1*x2+y1*y2)*(180/math.pi), 4)
         return -a
     
-    def Rotate(self, theta: float, deg:bool = False):
-        x = self.localPosition[0]
-        y = self.localPosition[1]
-        if deg: theta*=math.pi/180
-        newV = Vector2(round(x*math.cos(theta)-y*math.sin(theta), 4), round(x*math.sin(theta)+y*math.cos(theta), 4), *self.offset)
-        return newV
+    def Rotate(vector: Vector, theta: float, deg:bool = False):
+        x = vector.localPosition[0]
+        y = vector.localPosition[1]
+        if deg: theta*=-math.pi/180
+        return Vector2(round(x*math.cos(theta)-y*math.sin(theta), 4), round(x*math.sin(theta)+y*math.cos(theta), 4), *vector.offset)
     
     def ClampAngle(self, vector2: Vector, minAngle: float, maxAngle: float):
         angle = Vector2.SignedAngle(self, vector2)
@@ -100,9 +100,15 @@ class Vector2(Vector):
         elif angle>maxAngle:
             diff = round(maxAngle-angle, 4)
         if (diff != 0):
-            newV = self.Rotate(diff, True)
+            newV = Vector2.Rotate(self, diff, True)
             self.update_pos(*newV.position)
         
+    def SetAngle(self, vector1: Vector, angle: float):
+        newV = Vector2.Rotate(vector1, angle, True)
+        
+        
+        return Vector2(*newV.localPosition, *self.offset)
+    
     def normalize(self):
         newX = round(self.localPosition[0]/self.magnitude, 8)
         newY = round(self.localPosition[1]/self.magnitude, 8)
@@ -142,26 +148,28 @@ while run:
     mouseX, mouseY = pygame.mouse.get_pos()
     keypressed = pygame.key.get_pressed()
 
-    if (movePoint1): point1.update_pos(mouseX, mouseY)
+
     if (movePoint3): point3.update_pos(mouseX, mouseY)
     point2.update_pos(*point3.position)
     
-    point1 = point1.normalize()*point1Length
-    point2.update_offset(*point1.position)
-    point2 = point2.normalize()*point2Length
-
-
-    point2.ClampAngle(point1, -150, 150)
-    point3.update_offset(*point3.position)
-    # point3.ClampAngle(point2, 0, 0)
-    # point3 = point3.normalize()*200
-
-    if (pygame.mouse.get_pressed()[0] and point1Circle.collidepoint(mouseX, mouseY)): movePoint1 = True
-    # elif (pygame.mouse.get_pressed()[0] and point2Circle.collidepoint(mouseX, mouseY)): movePoint2 = True
-    elif (pygame.mouse.get_pressed()[0] and point3Circle.collidepoint(mouseX, mouseY)): movePoint3 = True
+    
+    
 
     
-    text = font.render(f"{Vector2.SignedAngle(point2, point3)} degrees", True, "green")
+    newV = point2-point3
+    newV = Vector2(round(newV.localPosition[0], 4), round(newV.localPosition[1], 4))
+    point1 += Vector2(0, 0)-newV
+    point2 = point2.SetAngle(point1, abs(Vector2.SignedAngle(point1, point2)))
+    point1 = point1.normalize()*point1Length
+    point2 = point2.normalize()*point2Length
+    
+    point2.update_offset(*point1.position)
+    point3.update_offset(*point2.position)
+    
+    if (pygame.mouse.get_pressed()[0] and point3Circle.collidepoint(mouseX, mouseY)): movePoint3 = True
+
+    
+    text = font.render(f"{Vector2.SignedAngle(point1, point2)} degrees", True, "green")
     textRect = text.get_rect()
     textRect.topleft = [50, 50]
     
