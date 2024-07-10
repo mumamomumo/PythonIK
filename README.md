@@ -1,0 +1,1 @@
+A side project I was working while working on my game. I found Inverse Kinematics super interesting and I heard there's a lot of math behind IK so I decided to try it out and see how hard it was. Tbh, since I'm not that good at programming I found it harder to recreate it in python than learn the math required for it.
